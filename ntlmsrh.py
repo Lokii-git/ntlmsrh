@@ -138,7 +138,7 @@ DEFAULT_PATHS = [
 ]
 
 class NTLMSRHScanner:
-    def __init__(self, threads=15, timeout=5, verbose=False):  # Faster defaults
+    def __init__(self, threads=15, timeout=1, verbose=False):  # Hardcoded aggressive timeout for speed
         self.threads = threads
         self.timeout = timeout
         self.verbose = verbose
@@ -156,6 +156,26 @@ class NTLMSRHScanner:
         self.session.mount("http://", adapter)
         self.session.mount("https://", adapter)
         
+    def quick_host_check(self, target_url):
+        """Quick connectivity check before full NTLM scan"""
+        try:
+            # Extract hostname from URL
+            from urllib.parse import urlparse
+            parsed = urlparse(target_url)
+            hostname = parsed.hostname or parsed.netloc
+            port = parsed.port or (443 if parsed.scheme == 'https' else 80)
+            
+            # Quick TCP connect test (faster than full HTTP request)
+            sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            sock.settimeout(1)  # 1 second timeout for connectivity check
+            result = sock.connect_ex((hostname, port))
+            sock.close()
+            
+            return result == 0  # 0 means connection successful
+            
+        except (socket.gaierror, socket.timeout, Exception):
+            return False  # Host unreachable or invalid
+    
     def load_targets(self, target_input):
         """Load targets from file, IP, CIDR range, or URL"""
         targets = []
@@ -376,13 +396,15 @@ class NTLMSRHScanner:
     
     def scan_target(self, base_url):
         """Scan a target URL against all default paths"""
-        # Extract clean host from URL for display
+        # Extract clean host from URL for display  
         from urllib.parse import urlparse
         parsed = urlparse(base_url)
         clean_host = parsed.hostname or parsed.netloc
         
-        print(f"{Colors.INFO}[*] Brute forcing {len(DEFAULT_PATHS)} endpoints on {clean_host}{Colors.RESET}")
-            
+        # Quick connectivity check before full scan
+        if not self.quick_host_check(base_url):
+            return []  # Return empty results for unreachable hosts
+        
         results = []
         
         for path in DEFAULT_PATHS:
@@ -417,6 +439,8 @@ class NTLMSRHScanner:
     
     def scan_multiple_targets(self, targets):
         """Scan multiple targets with threading"""
+        completed_count = 0
+        
         with ThreadPoolExecutor(max_workers=self.threads) as executor:
             future_to_target = {executor.submit(self.scan_target, target): target for target in targets}
             
@@ -428,15 +452,26 @@ class NTLMSRHScanner:
                     break
                     
                 target = future_to_target[future]
+                completed_count += 1
+                
+                # Extract clean host for display
+                from urllib.parse import urlparse
+                parsed = urlparse(target)
+                clean_host = parsed.hostname or parsed.netloc
+                
                 try:
                     results = future.result()
-                    if results and not self.verbose:
-                        print(f"   {Colors.SUCCESS}[+] {target}: {len(results)} NTLM endpoints found{Colors.RESET}")
-                    elif not results and not self.verbose:
-                        print(f"   {Colors.ERROR}[-] {target}: No NTLM endpoints{Colors.RESET}")
+                    if results:
+                        print(f"{Colors.SUCCESS}[+] {clean_host} ({completed_count}/{len(targets)}): {len(results)} NTLM endpoints found{Colors.RESET}")
+                    else:
+                        # Check if host was reachable by trying quick connectivity test
+                        if not self.quick_host_check(target):
+                            print(f"{Colors.ERROR}[-] {clean_host} ({completed_count}/{len(targets)}): Host unreachable/filtered{Colors.RESET}")
+                        else:
+                            print(f"{Colors.ERROR}[-] {clean_host} ({completed_count}/{len(targets)}): No NTLM endpoints{Colors.RESET}")
                         
                 except Exception as e:
-                    print(f"   {Colors.ERROR}[!] {target}: Error - {e}{Colors.RESET}")
+                    print(f"{Colors.ERROR}[!] {clean_host} ({completed_count}/{len(targets)}): Error - {e}{Colors.RESET}")
     
     def save_report(self, filename="ntlmsrh_report.json"):
         """Save comprehensive JSON report"""
@@ -551,7 +586,7 @@ def main():
     parser.add_argument('-t', '--threads', type=int, default=15, help='Number of threads (default: 15)')
     parser.add_argument('-o', '--output', help='Save formatted text output to file (optional)')
     parser.add_argument('-j', '--json', help='Save JSON report to specified file (optional)')
-    parser.add_argument('--timeout', type=int, default=5, help='Request timeout in seconds (default: 5)')
+    parser.add_argument('--timeout', type=int, default=1, help='Request timeout in seconds (default: 1)')
     parser.add_argument('-v', '--verbose', action='store_true', help='Verbose output')
     parser.add_argument('--paths', help='Custom paths file (one per line)')
     args = parser.parse_args()
@@ -585,6 +620,15 @@ def main():
         
     print(f"{Colors.SUCCESS}[+] Found {len(targets)} targets to scan{Colors.RESET}")
     print(f"{Colors.INFO}[*] Testing {len(DEFAULT_PATHS)} paths per target{Colors.RESET}")
+    
+    # Calculate and display estimated scan time
+    total_requests = len(targets) * len(DEFAULT_PATHS)
+    estimated_time_seconds = total_requests * 1  # 1 second timeout per request worst case
+    estimated_minutes = estimated_time_seconds / 60
+    
+    print(f"{Colors.HIGHLIGHT}[*] Estimated max time: {total_requests} requests (~{estimated_minutes:.1f} minutes for unresponsive hosts){Colors.RESET}")
+    if estimated_minutes > 5:
+        print(f"{Colors.INFO}[*] TIP: Responsive hosts will complete much faster than estimate{Colors.RESET}")
     
     # Perform scans
     if len(targets) == 1:
