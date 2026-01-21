@@ -621,15 +621,6 @@ def main():
     print(f"{Colors.SUCCESS}[+] Found {len(targets)} targets to scan{Colors.RESET}")
     print(f"{Colors.INFO}[*] Testing {len(DEFAULT_PATHS)} paths per target{Colors.RESET}")
     
-    # Calculate and display estimated scan time
-    total_requests = len(targets) * len(DEFAULT_PATHS)
-    estimated_time_seconds = total_requests * 1  # 1 second timeout per request worst case
-    estimated_minutes = estimated_time_seconds / 60
-    
-    print(f"{Colors.HIGHLIGHT}[*] Estimated max time: {total_requests} requests (~{estimated_minutes:.1f} minutes for unresponsive hosts){Colors.RESET}")
-    if estimated_minutes > 5:
-        print(f"{Colors.INFO}[*] TIP: Responsive hosts will complete much faster than estimate{Colors.RESET}")
-    
     # Perform scans
     if len(targets) == 1:
         # Single target - detailed output
