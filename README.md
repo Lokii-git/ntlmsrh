@@ -282,22 +282,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 Contributions are welcome! Please feel free to submit a Pull Request.
 
-## 🔗 Related Tools
-
-Part of the pentesting toolkit including:
-- [Censys-Scan](../censys-scan/) - Censys intelligence gathering
-- [IKE-Hunter](../ike-hunter/) - IKE/VPN vulnerability assessment
-- [Shodan-Scan](../shodan-scan/) - Shodan reconnaissance
-
-## 📈 Roadmap
-
-- [ ] **IKEv2 Support**: Add IKEv2 endpoint detection
-- [ ] **Kerberos Detection**: Identify Kerberos authentication
-- [ ] **Certificate Analysis**: Extract and analyze SSL certificates
-- [ ] **Vulnerability Checks**: Add specific NTLM vulnerability tests
-- [ ] **Output Formats**: Add XML and HTML report formats
-- [ ] **Integration APIs**: Add REST API for tool integration
-
 ---
 
 **⚠️ Disclaimer**: This tool is for authorized penetration testing and security research only. Users are responsible for complying with applicable laws and regulations.
