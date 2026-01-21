@@ -1,5 +1,10 @@
 # NTLMSRH - Git Ignore File
 
+# Planning and development files
+ROADMAP.md
+TODO.md
+NOTES.md
+
 # Target lists (contain sensitive IP addresses)
 iplist.txt
 targets.txt
