@@ -1,0 +1,11 @@
+# Sample NTLM targets for testing
+# Individual URLs
+http://mail.contoso.com/ews/
+https://webmail.company.com/exchange/
+
+# IP addresses (will test common paths)
+192.168.1.100
+10.0.0.50
+
+# CIDR ranges (will sample and test)
+192.168.1.0/28
